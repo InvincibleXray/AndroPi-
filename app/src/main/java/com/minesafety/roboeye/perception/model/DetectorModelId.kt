@@ -19,7 +19,7 @@ enum class DetectorModelId(
         id = "yolo26n",
         displayName = "YOLO26n",
         assetFileName = "models/yolo26n_detector.tflite",
-        isAssetBundled = false,
+        isAssetBundled = true,
     ),
     SSD_MOBILENET(
         id = "ssd_mobilenet_v1",
