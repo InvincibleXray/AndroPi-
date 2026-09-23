@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  USB-OTG serial adapters used by ESP32 dev boards. Matching one of these makes
+  Android offer to launch the Rover Node when the bridge is plugged in.
+-->
+<resources>
+    <!-- Silicon Labs CP210x (CP2102 / CP2104) -->
+    <usb-device vendor-id="4292" />
+    <!-- QinHeng CH340 / CH341 / CH9102 -->
+    <usb-device vendor-id="6790" />
+    <!-- FTDI FT232 -->
+    <usb-device vendor-id="1027" />
+    <!-- Arduino / Genuino CDC -->
+    <usb-device vendor-id="9025" />
+    <!-- Espressif native USB CDC (ESP32-S2 / S3 / C3) -->
+    <usb-device vendor-id="12346" />
+    <!-- Prolific PL2303 -->
+    <usb-device vendor-id="1659" />
+</resources>

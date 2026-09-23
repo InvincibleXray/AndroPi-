@@ -1,0 +1,1078 @@
+<USER_REQUEST>
+============================================================
+PHASE 6E.1 — YOLO26n RUNTIME INTEGRATION
+SIH26007 / ROVER BRAIN
+IMPLEMENTATION + SELF-DEBUG + VERIFICATION
+============================================================
+
+IMPORTANT:
+This is an EXISTING production-like Android rover project.
+
+DO NOT create a scratch app.
+DO NOT rewrite the architecture.
+DO NOT redesign unrelated components.
+DO NOT refactor unrelated code.
+
+Your ONLY objective is to integrate YOLO26n as a third
+selectable on-device perception model so that the existing
+Phase 6E benchmark can physically compare:
+
+    1. YOLO11n
+    2. YOLO26n
+    3. SSD MobileNet V1
+
+The SAME benchmark infrastructure and comparable methodology
+must be used for all three models.
+
+============================================================
+0. PRIMARY OBJECTIVE
+============================================================
+
+Implement YOLO26n inside the EXISTING Rover Brain perception
+architecture.
+
+After this phase, the existing model selector must support:
+
+    YOLO11n
+    YOLO26n
+    SSD MobileNet V1
+
+The existing Phase 6E benchmark must be able to execute YOLO26n
+and produce the SAME benchmark JSON schema already used by
+YOLO11n and SSD.
+
+DO NOT decide which model is better.
+
+DO NOT rank the models.
+
+DO NOT modify benchmark methodology to favor YOLO26n.
+
+This phase ends when YOLO26n is:
+
+    integrated
+    testable
+    buildable
+    benchmark-ready
+
+Actual physical benchmark measurements will be collected later.
+
+============================================================
+1. FIRST ACTION — FULL READ-ONLY AUDIT
+============================================================
+
+BEFORE modifying any file:
+
+Inspect and understand:
+
+A. Detector abstraction
+B. DetectorFactory
+C. DetectorModelId
+D. DetectorCreationResult
+E. ObjectDetector interface/base contract
+F. YoloDetector
+G. TfliteObjectDetector
+H. SSD MobileNet implementation
+I. PerceptionWorker
+J. PerceptionMailbox
+K. ByteTracker
+L. TrackedObject
+M. NavigationWorldModel.semanticObjects
+N. RoboEyeController
+O. RoboEyeViewModel
+P. RoboEyeScreen
+Q. model selector UI
+R. DeviceBenchmarkSession
+S. DeviceBenchmarkReport
+T. benchmark JSON serializer
+U. benchmark state machine
+V. runtime/backend selection
+W. model asset loading
+X. tensor preprocessing
+Y. tensor output decoding
+Z. AI ON/OFF lifecycle
+AA. detector initialization/close lifecycle
+
+Also inspect:
+
+- Gradle dependencies
+- LiteRT/TFLite version
+- all bundled ML assets
+- model metadata
+- labels
+- tensor input/output descriptors
+- Bitmap preprocessing
+- resize/letterbox implementation
+- coordinate conversion
+- quantization
+- CPU/XNNPACK/NNAPI/GPU handling
+- detector error handling
+- lifecycle ownership
+
+DO NOT begin implementation before this audit.
+
+FINAL REPORT MUST START WITH EXACTLY:
+
+AUDIT COMPLETE
+
+Then summarize the existing detector architecture.
+
+============================================================
+2. YOLO26n MODEL ASSET — HARD REQUIREMENT
+============================================================
+
+Search the ENTIRE project for:
+
+- YOLO26
+- yolo26
+- YOLO26n
+- yolo26n
+- .tflite
+- LiteRT assets
+- model metadata
+- labels
+- exported model files
+
+A valid YOLO26n Android-compatible LiteRT/TFLite artifact is
+required.
+
+Official Ultralytics documentation currently supports YOLO26
+LiteRT export and produces a .tflite artifact. Do not use
+an unrelated or renamed model. [Reference this only to guide
+implementation; do not copy unsupported assumptions into code.]
+
+IF a valid YOLO26n .tflite/LiteRT asset ALREADY EXISTS:
+    integrate it.
+
+IF it does NOT exist:
+
+    1. Verify whether a legitimate YOLO26n source checkpoint
+       or export source is already available in the project/workspace.
+
+    2. If the environment already has the necessary tooling and
+       the task permits generating the model artifact, generate
+       a REAL YOLO26n LiteRT/TFLite artifact from the official
+       YOLO26n source.
+
+    3. Record the exact source model, export command/options,
+       image size, precision/quantization, and resulting asset
+       path.
+
+    4. DO NOT fabricate metadata.
+
+    5. DO NOT rename YOLO11n or another model as YOLO26n.
+
+    6. DO NOT silently download an unrelated third-party model.
+
+IF a genuine YOLO26n artifact cannot be obtained/validated:
+    report:
+
+        YOLO26N_ASSET_MISSING
+
+    and STOP at the model-integration boundary.
+
+Do not fake benchmark readiness.
+
+============================================================
+3. MODEL ID
+============================================================
+
+Model identities MUST remain exactly:
+
+    YOLO11N
+    YOLO26N
+    SSD_MOBILENET
+
+No ambiguous IDs such as:
+
+    YOLO
+    NEW_YOLO
+    YOLO_NEXT
+
+YOLO26n must have an explicit dedicated model ID.
+
+============================================================
+4. STRICT MODEL SELECTION SEMANTICS
+============================================================
+
+CRITICAL:
+
+The selected model MUST equal the model that actually runs.
+
+--------------------------------
+YOLO11n selected
+--------------------------------
+
+Run YOLO11n ONLY.
+
+If YOLO11n initialization/inference fails:
+
+    activeModel = null/unavailable
+    report failure
+
+NO SSD fallback.
+NO YOLO26n fallback.
+
+--------------------------------
+YOLO26n selected
+--------------------------------
+
+Run YOLO26n ONLY.
+
+If YOLO26n initialization/inference fails:
+
+    activeModel = null/unavailable
+    report failure
+
+NO YOLO11n fallback.
+NO SSD fallback.
+
+--------------------------------
+SSD selected
+--------------------------------
+
+Run SSD MobileNet V1 ONLY.
+
+If SSD initialization/inference fails:
+
+    activeModel = null/unavailable
+    report failure
+
+NO YOLO11n fallback.
+NO YOLO26n fallback.
+
+THERE MUST BE ZERO HIDDEN CROSS-MODEL FALLBACK.
+
+============================================================
+5. YOLO26n DETECTOR IMPLEMENTATION
+============================================================
+
+Implement YOLO26n through the EXISTING detector abstraction.
+
+DO NOT create a parallel perception architecture.
+
+Reuse compatible infrastructure:
+
+- ObjectDetector
+- DetectorFactory
+- detector lifecycle
+- frame snapshot
+- Bitmap ownership
+- PerceptionWorker
+- PerceptionMailbox
+- ByteTracker
+- TrackedObject
+- semantic projection
+- NavigationWorldModel
+- DeviceBenchmarkSession
+
+Only implement YOLO26n-specific detector functionality.
+
+Possible detector-specific areas:
+
+- model loading
+- tensor input shape
+- preprocessing
+- letterbox
+- normalization
+- output decoding
+- confidence filtering
+- class decoding
+- NMS or NMS-free handling
+- coordinate remapping
+
+============================================================
+6. YOLO26n OUTPUT CONTRACT — CRITICAL
+============================================================
+
+DO NOT assume YOLO26n is structurally identical to YOLO11n.
+
+INSPECT THE ACTUAL MODEL.
+
+Determine:
+
+- input tensor count
+- input shape
+- input dtype
+- input quantization
+- output tensor count
+- output shape
+- output dtype
+- output quantization
+- class count
+- output layout
+- output ordering
+- metadata
+- whether NMS is embedded
+- whether NMS is external
+- whether model is one-to-many or one-to-one
+- maximum detections
+
+IMPORTANT:
+
+YOLO26 supports different detection export paths.
+
+The implementation must determine the ACTUAL output contract
+of the exact artifact being integrated.
+
+For YOLO26 detection:
+
+    NMS/raw one-to-many export:
+        output may follow a raw prediction layout and require
+        external confidence filtering + NMS.
+
+    NMS-free one-to-one export:
+        output may follow a processed detection layout such as:
+
+        [x1, y1, x2, y2, confidence, class_id]
+
+        with a bounded number of detections.
+
+DO NOT hardcode either format unless the actual model artifact
+proves that format.
+
+DO NOT blindly reuse YOLO11n's:
+
+    640x640
+    [1,84,8400]
+    80-class assumptions
+    decoder
+    DFL assumptions
+
+YOLO26 uses a different detection head design and can be
+exported with different output behavior.
+
+The detector must inspect/validate the model contract at
+initialization.
+
+If the tensor contract is unsupported:
+
+    fail honestly
+    activeModel = unavailable
+    provide exact reason
+
+Do NOT silently reinterpret incompatible tensors.
+
+============================================================
+7. EXPORT / MODEL PROVENANCE
+============================================================
+
+If a YOLO26n artifact is generated during this phase, record:
+
+- original source model/checkpoint
+- exact model variant: YOLO26n
+- export format
+- export image size
+- NMS mode
+- precision/quantization
+- batch size
+- exact export command
+- artifact filename
+- artifact size
+- metadata availability
+
+Do not change these values later for one device only.
+
+For physical benchmark comparability, the exact same YOLO26n
+artifact must be used on every benchmark device unless a
+separate benchmark run explicitly states otherwise.
+
+============================================================
+8. PREPROCESSING
+============================================================
+
+Reuse existing FrameGeometry and image-transform utilities
+wherever compatible.
+
+Maintain:
+
+- aspect ratio
+- letterbox/padding
+- normalization
+- correct source-frame mapping
+- normalized coordinates
+- correct bbox coordinate conversion
+
+Do NOT modify camera orientation.
+
+Do NOT modify:
+
+- CameraController
+- UprightFrameConverter
+- physical camera mount assumptions
+- IMU mount calibration
+- geometric vision coordinate system
+
+unless a strictly detector-local adapter is required.
+
+============================================================
+9. POSTPROCESSING
+============================================================
+
+YOLO26n output must become the EXISTING detection contract:
+
+- bounding box
+- class ID
+- class label
+- confidence
+- timestamp/frame identity
+
+Do not create a second object representation.
+
+Required downstream flow:
+
+    YOLO26n
+        ↓
+    ObjectDetector result
+        ↓
+    PerceptionWorker
+        ↓
+    ByteTracker
+        ↓
+    TrackedObject
+        ↓
+    ObjectWorldProjection
+        ↓
+    WorldObject
+        ↓
+    NavigationWorldModel.semanticObjects
+        ↓
+    UI / Telemetry
+
+DO NOT bypass ByteTracker.
+
+DO NOT create a YOLO26-specific tracker.
+
+============================================================
+10. BYTE TRACKER
+============================================================
+
+DO NOT modify ByteTracker algorithmically.
+
+YOLO26n must use the SAME ByteTracker implementation used
+by the existing system.
+
+NO:
+
+- ByteTrack26
+- Yolo26Tracker
+- second tracker
+- model-specific tracking algorithm
+
+Adapt only at the detector boundary when necessary.
+
+============================================================
+11. PERCEPTION THREADING
+============================================================
+
+Preserve Phase 6A architecture EXACTLY.
+
+Camera:
+
+    CameraX
+       ↓
+    geometric pipeline
+       ↓
+    snapshot
+       ↓
+    bounded PerceptionMailbox
+
+Worker:
+
+    PerceptionMailbox
+       ↓
+    selected detector
+       ↓
+    ByteTracker
+       ↓
+    semantic world model
+
+Camera thread MUST NOT wait for YOLO26n.
+
+FORBIDDEN:
+
+- synchronous detect on camera executor
+- Future.get()
+- join()
+- runBlocking()
+- Thread.sleep()
+- blocking mutex
+- unbounded queue
+
+Maintain:
+
+    max 1 active inference
+    max 1 pending latest frame
+
+Newer pending frame replaces older pending frame.
+
+============================================================
+12. BENCHMARK COMPATIBILITY
+============================================================
+
+Integrate YOLO26n into the EXISTING Phase 6E benchmark.
+
+DO NOT create another benchmark framework.
+
+YOLO26n must appear as:
+
+    model = YOLO26N
+
+Use the SAME benchmark calculations for all models.
+
+Continue recording:
+
+TIMING
+- initializationMs
+- firstInferenceMs
+- warmup
+- steady-state duration
+- min latency
+- P50
+- P95
+- max latency
+- mean latency
+
+PRODUCTION
+- completed inferences
+- production inference rate Hz
+- theoretical throughput if already supported
+
+FRAME ACCOUNTING
+- submitted
+- started
+- completed
+- skipped
+- pending replacements
+- stale results
+- failures
+
+SYSTEM
+- device
+- backend
+- memory if available
+- thermal state if available
+
+DETECTION ACTIVITY
+- detection frames
+- total detections
+- average detections/frame
+
+DO NOT alter formulas for YOLO26n.
+
+============================================================
+13. WARM-UP
+============================================================
+
+Preserve Phase 6E rule:
+
+    first 10 SUCCESSFUL completed inferences
+        =
+    warm-up
+
+Warm-up samples MUST NOT enter steady-state latency stats.
+
+If fewer than 10 successful completions occur:
+
+    benchmark = FAILED
+
+============================================================
+14. PRODUCTION INFERENCE RATE
+============================================================
+
+Preserve existing production-rate calculation.
+
+Actual production rate MUST remain:
+
+    completed inference results
+    /
+    actual steady-state elapsed time
+
+Do NOT replace actual throughput with:
+
+    1000 / lastLatency
+
+unless clearly labelled as theoretical throughput.
+
+============================================================
+15. BACKEND RECORDING
+============================================================
+
+Record the ACTUAL runtime backend.
+
+Examples:
+
+- CPU
+- XNNPACK
+- NNAPI
+- GPU
+- other existing backend
+
+Do NOT claim a delegate merely because it is theoretically
+supported.
+
+If backend cannot be reliably identified:
+
+    NOT_AVAILABLE
+
+============================================================
+16. DETECTION METRICS
+============================================================
+
+This benchmark is NOT a ground-truth accuracy benchmark.
+
+DO NOT claim:
+
+- mAP
+- precision
+- recall
+- F1
+- accuracy
+
+unless a real labeled evaluation has separately been performed.
+
+Only collect supported observational metrics.
+
+============================================================
+17. MODEL SELECTOR UI
+============================================================
+
+Existing selector must show:
+
+    [ YOLO11n ]
+    [ YOLO26n ]
+    [ SSD MobileNet ]
+
+If YOLO26n is valid and operational:
+    remove obsolete "Pending" state.
+
+If unavailable:
+    visibly show unavailable/pending.
+
+Selected and active model must remain distinguishable if
+the current architecture supports both.
+
+Successful invariant:
+
+    selectedModel == activeModel
+
+Forbidden:
+
+    selectedModel != activeModel
+    while inference is reported as successful.
+
+============================================================
+18. AI ON/OFF
+============================================================
+
+AI OFF:
+
+- stop detector inference
+- clear semantic objects as existing architecture requires
+- geometry continues
+- no YOLO26n inference
+
+AI ON:
+
+- selected detector may initialize
+- ONLY selected detector runs
+
+Failure:
+
+- semantic perception unavailable
+- geometry continues
+- NO substitute model
+
+============================================================
+19. LIFECYCLE
+============================================================
+
+Verify:
+
+- app backgrounding
+- foreground service lifecycle
+- camera lifecycle
+- benchmark start
+- benchmark stop
+- AI OFF
+- AI ON
+- detector init
+- detector close
+- worker shutdown
+
+No:
+
+- interpreter leaks
+- executor leaks
+- bitmap leaks
+- ImageProxy leaks
+- duplicate detector
+- duplicate worker
+- orphan benchmark session
+
+============================================================
+20. ERROR ISOLATION
+============================================================
+
+YOLO26n failure MUST NOT crash:
+
+- camera
+- KLT
+- RANSAC
+- FOE
+- TTC
+- geometric free-space
+- localization
+- mapping
+- navigation
+- safety supervisor
+
+Desired behavior:
+
+    YOLO26n failure
+          ↓
+    semantic perception unavailable
+          ↓
+    geometry continues
+          ↓
+    no fake detections
+          ↓
+    no fallback detector
+
+============================================================
+21. PROTECTED COMPONENTS
+============================================================
+
+DO NOT modify unless absolutely unavoidable:
+
+- CameraController
+- PerceptionMailbox
+- GeometricVisionPipeline
+- LocalSpatialMap
+- VisualInertialLocalizer
+- LocalPose
+- AStarGridPlanner
+- LocalObstacleAvoidance
+- AutonomousNavigator
+- CommandArbiter
+- NavigationSafetyGate
+- SafetyMirror
+- ByteTracker algorithm
+- Phase 6E benchmark methodology
+
+Prefer modifications only to:
+
+- YOLO26n detector adapter
+- DetectorFactory
+- DetectorModelId
+- model metadata/config
+- model selector wiring
+- benchmark model availability wiring
+- tests
+- model asset
+
+Keep changes minimal.
+
+============================================================
+22. NO SCOPE CREEP
+============================================================
+
+DO NOT implement:
+
+- YOLO26s
+- YOLO26m
+- YOLO26l
+- segmentation
+- pose
+- OBB
+- depth
+- stereo depth
+- monocular depth network
+- ONNX
+- NCNN
+- TensorRT
+- retraining
+- fine-tuning
+- dataset work
+- quantization experiments beyond the exact artifact required
+- pruning
+- model auto-selection
+- dynamic obstacle avoidance
+- planner changes
+- safety changes
+- KLT → ByteTrack redesign
+- new tracker
+- new world model
+- second benchmark framework
+
+ONLY YOLO26n runtime integration.
+
+============================================================
+23. TEST REQUIREMENTS
+============================================================
+
+Add/update tests for:
+
+1. YOLO26N ID exists.
+
+2. DetectorFactory supports YOLO26N.
+
+3. Valid YOLO26n asset is discovered.
+
+4. Missing asset → unavailable.
+
+5. Invalid/incompatible tensor contract → unavailable.
+
+6. Valid YOLO26n model initializes.
+
+7. YOLO26n selected → YOLO26n active.
+
+8. YOLO26n init failure:
+       active = unavailable/null
+       no SSD
+       no YOLO11n
+
+9. YOLO11n selected:
+       YOLO26n not invoked.
+
+10. SSD selected:
+       YOLO26n not invoked.
+
+11. YOLO26n output converts to existing detector result.
+
+12. YOLO26n bounding-box coordinate mapping is correct.
+
+13. YOLO26n class/confidence decoding is correct.
+
+14. Frame/timestamp identity is preserved.
+
+15. ByteTracker receives normal detection contract.
+
+16. AI OFF disables YOLO26n.
+
+17. Lifecycle closes YOLO26n resources.
+
+18. Benchmark recognizes YOLO26N.
+
+19. Benchmark report contains:
+
+       model = YOLO26N
+
+20. Warm-up remains 10 successful inferences.
+
+21. Production FPS formula remains unchanged.
+
+22. YOLO26n failure does not stop geometry.
+
+23. No cross-model fallback.
+
+24. No duplicate inference worker.
+
+25. Pending mailbox remains bounded.
+
+26. selectedModel == activeModel on successful execution.
+
+27. Model metadata/output validation is tested.
+
+28. YOLO11n remains functional.
+
+29. SSD remains functional.
+
+============================================================
+24. SELF-DEBUG
+============================================================
+
+After implementation:
+
+1. Run relevant detector tests.
+2. Run benchmark tests.
+3. Run full test suite.
+4. Run debug build.
+
+For EVERY failure:
+
+    inspect actual error
+    identify root cause
+    fix
+    rerun targeted test
+    rerun full tests
+
+Do NOT stop at the first compilation failure.
+
+Do NOT simply report "build failed".
+
+Self-debug until successful OR a genuine external blocker
+exists.
+
+Examples of legitimate blockers:
+
+- missing model artifact
+- incompatible YOLO26n model
+- unsupported runtime operator
+- dependency unavailable
+- environment/toolchain failure
+
+Never fake success.
+
+============================================================
+25. BUILD VERIFICATION
+============================================================
+
+At minimum run:
+
+    ./gradlew test
+    ./gradlew assembleDebug
+
+Also run relevant detector/benchmark tests.
+
+Report EXACT results.
+
+Never fabricate counts.
+
+============================================================
+26. FINAL DIFF AUDIT
+============================================================
+
+Inspect changed files after implementation.
+
+Verify:
+
+- no unrelated files modified
+- no protected architecture changes
+- no hidden fallback
+- no benchmark methodology change
+- no navigation change
+- no safety change
+- no camera regression
+- no YOLO11n regression
+- no SSD regression
+
+============================================================
+27. FINAL REPORT FORMAT
+============================================================
+
+# PHASE 6E.1 RESULT
+
+AUDIT COMPLETE
+
+## 1. Audit
+Inspected components and findings.
+
+## 2. YOLO26n Asset
+Exact asset path.
+Exact filename.
+Exact file format.
+Exact model variant.
+
+If generated:
+- source
+- export command
+- imgsz
+- NMS mode
+- precision/quantization
+- batch
+- artifact size
+
+## 3. Implementation
+Exact files created/modified.
+
+## 4. Runtime Contract
+Input tensor:
+Input dtype:
+Output tensor count:
+Output shape:
+Output dtype:
+Class count:
+Output layout:
+NMS mode:
+Preprocessing:
+Postprocessing:
+Backend:
+Model size:
+
+ONLY REPORT VERIFIED VALUES.
+
+## 5. Model Selection
+
+YOLO11n:
+YOLO26n:
+SSD MobileNet:
+
+Explicitly confirm:
+
+    NO CROSS-MODEL FALLBACK
+
+## 6. Benchmark Integration
+Explain how YOLO26n enters existing Phase 6E.
+
+## 7. Tests
+Exact counts and pass/fail result.
+
+## 8. Build
+Exact command and result.
+
+## 9. Protected Architecture
+List protected components confirmed untouched.
+
+## 10. Known Limitations
+Only genuine limitations.
+
+## 11. Hardware Validation
+
+Unless actual physical hardware was connected and tested:
+
+    NOT PERFORMED
+
+Do NOT fabricate:
+
+- Redmi 6A
+- Mi 11X
+- S24 Ultra
+
+results.
+
+## 12. Next Step
+
+ONLY:
+
+    Run Phase 6E physical benchmark on:
+
+    - YOLO11n
+    - YOLO26n
+    - SSD MobileNet
+
+Then export the ACTUAL JSON reports.
+
+============================================================
+28. FINAL HARD RULE
+============================================================
+
+DO NOT decide which model is better.
+
+DO NOT rank models.
+
+DO NOT generate fake benchmark results.
+
+DO NOT fabricate hardware performance.
+
+DO NOT silently substitute another detector.
+
+DO NOT alter the benchmark methodology.
+
+Your responsibility:
+
+    IMPLEMENT YOLO26n
+    INTEGRATE IT
+    VALIDATE ITS REAL MODEL CONTRACT
+    TEST IT
+    SELF-DEBUG IT
+    BUILD IT
+    MAKE IT BENCHMARK-READY
+
+Then STOP.
+
+WAIT FOR THE OPERATOR TO RUN THE ACTUAL DEVICE BENCHMARK.
+============================================================
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-23T19:06:21+05:30.
+</ADDITIONAL_METADATA>

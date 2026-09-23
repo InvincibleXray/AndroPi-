@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Mine Safety Rover backend runs on the mine LAN over plain HTTP/WS
+  (http://<host>:8000, ws://<host>:8000) and the operator types that host into
+  Settings at deploy time, so it can be any private address.
+
+  Android's network-security-config cannot match IP ranges (<domain> matches
+  hostnames only, not CIDR blocks), so scoping cleartext to "private ranges only"
+  is not expressible here. Cleartext is therefore permitted globally for this
+  prototype, which is acceptable because the rover LAN is an isolated field
+  network. TLS (https/wss) is a documented known limitation — see README.md.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

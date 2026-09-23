@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light-only launch theme: the Rover Node UI is deliberately white/minimal and
+         never follows the dark operator command-center styling of the web app. -->
+    <style name="Theme.RoverNode" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

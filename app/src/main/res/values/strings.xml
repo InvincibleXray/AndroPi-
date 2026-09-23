@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Robo Eye</string>
+    <string name="notif_channel_name">Robo Eye</string>
+    <string name="notif_channel_desc">Shows that the Robo Eye vehicle perception and telemetry node is active.</string>
+    <string name="notif_title">Robo Eye active</string>
+    <string name="notif_action_stop">Stop</string>
+</resources>
